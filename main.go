@@ -19,6 +19,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+  "sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -55,6 +56,10 @@ func main() {
 	flag.StringVar(&optsPath, "opts-path", "", "Path to options JSON file")
 	flag.Parse()
 
+  if name == "" {
+    fatalerr("must provide name")
+  }
+
 	homeTempPath = filepath.Join(tempDir, "index.html")
 	ts, err := template.ParseFiles(homeTempPath)
 	if err != nil {
@@ -84,6 +89,7 @@ func main() {
 	)
 	errChan := make(chan error)
 	go func() {
+    log.Println("Running server on:", srvrAddr)
 		errChan <- http.ListenAndServe(srvrAddr, nil)
 	}()
 	select {
@@ -121,6 +127,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		srvrs = append(srvrs, iSrvr.(*Srvr))
 		return true
 	})
+  sort.Slice(srvrs, func(i, j int) bool {
+    return srvrs[i].Name < srvrs[j].Name
+  })
 	if err := ts.Execute(w, srvrs); err != nil {
 		log.Println("error executing template:", err)
 		//http.Error(w, "Internal Server Error", http.StatusInternalServerError)
