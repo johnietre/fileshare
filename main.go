@@ -32,6 +32,7 @@ var (
 	broadcastAddr                            *net.UDPAddr
 	thisSrvrBytes                            []byte
 	fsDir, tempDir, homeTempPath, fsTempPath string
+  fsDirLen int
 	homeTsVal, fsTsVal                       atomic.Value
 	msgChan                                  = make(chan MsgInfo, 10)
 )
@@ -55,6 +56,11 @@ func main() {
 	flag.StringVar(&tempDir, "temp-path", ".", "Path to HTML template file")
 	flag.StringVar(&optsPath, "opts-path", "", "Path to options JSON file")
 	flag.Parse()
+
+  fsDirLen = len(fsDir)
+  if fsDir[fsDirLen-1] != '/' {
+    fsDirLen++
+  }
 
   if name == "" {
     fatalerr("must provide name")
@@ -219,14 +225,13 @@ func downloadZip(w http.ResponseWriter, r *http.Request, path string) {
 	zw := zip.NewWriter(w)
 	defer zw.Close()
 	filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-		fmt.Println(path)
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return nil
 		}
-		f, err := zw.Create(path)
+    f, err := zw.Create(path[fsDirLen:])
 		if err != nil {
 			return err
 		}
@@ -253,7 +258,7 @@ func downloadTar(w http.ResponseWriter, r *http.Request, path string) {
 		if err != nil {
 			return err
 		}
-		hdr.Name = filepath.ToSlash(path)
+    hdr.Name = filepath.ToSlash(path[fsDirLen:])
 		if info.IsDir() {
 			return nil
 		}
