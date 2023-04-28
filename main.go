@@ -104,24 +104,28 @@ func main() {
 		fatalerr("error starting HTTP server:", err)
 	}
 
-	pc, err := net.ListenPacket(
-		"udp4", net.JoinHostPort(udpIP, strconv.Itoa(udpPort)),
-	)
-	if err != nil {
-		fatalerr("error starting server:", err)
-	}
-	broadcastAddr, err = net.ResolveUDPAddr(
-		"udp4",
-		net.JoinHostPort(broadcastIP, strconv.Itoa(broadcastPort)),
-	)
-	if err != nil {
-		fatalerr("error starting server:", err)
-	}
+  if udpPort != "" && broadcastPort != "" {
+    pc, err := net.ListenPacket(
+      "udp4", net.JoinHostPort(udpIP, strconv.Itoa(udpPort)),
+    )
+    if err != nil {
+      fatalerr("error starting server:", err)
+    }
+    broadcastAddr, err = net.ResolveUDPAddr(
+      "udp4",
+      net.JoinHostPort(broadcastIP, strconv.Itoa(broadcastPort)),
+    )
+    if err != nil {
+      fatalerr("error starting server:", err)
+    }
 
-	go handleMsgs()
-	go listen2(pc)
-	go ping2(pc)
-	go check2()
+    go handleMsgs()
+    go listen2(pc)
+    go ping2(pc)
+    go check2()
+  } else {
+    log.Println("no udp and broadcast port, running without fileshare network")
+  }
 
 	log.Fatalln("error running HTTP server:", <-errChan)
 }
