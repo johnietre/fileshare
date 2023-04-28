@@ -19,7 +19,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
-  "sort"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,7 +32,7 @@ var (
 	broadcastAddr                            *net.UDPAddr
 	thisSrvrBytes                            []byte
 	fsDir, tempDir, homeTempPath, fsTempPath string
-  fsDirLen int
+	fsDirLen                                 int
 	homeTsVal, fsTsVal                       atomic.Value
 	msgChan                                  = make(chan MsgInfo, 10)
 )
@@ -43,6 +43,7 @@ func main() {
 	var (
 		broadcastIP, udpIP, srvrIP, name, optsPath string
 		broadcastPort, udpPort, srvrPort           int
+		noBroadcast                                bool
 	)
 
 	flag.StringVar(&broadcastIP, "broadcast-ip", "", "IPv4 address to broadcast to (no port)")
@@ -55,16 +56,17 @@ func main() {
 	flag.StringVar(&fsDir, "dir", ".", "Directory to serve")
 	flag.StringVar(&tempDir, "temp-path", ".", "Path to HTML template file")
 	flag.StringVar(&optsPath, "opts-path", "", "Path to options JSON file")
+	flag.BoolVar(&noBroadcast, "no-udp", false, "Don't listen/broadcast")
 	flag.Parse()
 
-  fsDirLen = len(fsDir)
-  if fsDir[fsDirLen-1] != '/' {
-    fsDirLen++
-  }
+	fsDirLen = len(fsDir)
+	if fsDir[fsDirLen-1] != '/' {
+		fsDirLen++
+	}
 
-  if name == "" {
-    fatalerr("must provide name")
-  }
+	if name == "" {
+		fatalerr("must provide name")
+	}
 
 	homeTempPath = filepath.Join(tempDir, "index.html")
 	ts, err := template.ParseFiles(homeTempPath)
@@ -95,7 +97,7 @@ func main() {
 	)
 	errChan := make(chan error)
 	go func() {
-    log.Println("Running server on:", srvrAddr)
+		log.Println("Running server on:", srvrAddr)
 		errChan <- http.ListenAndServe(srvrAddr, nil)
 	}()
 	select {
@@ -104,28 +106,28 @@ func main() {
 		fatalerr("error starting HTTP server:", err)
 	}
 
-  if udpPort != "" && broadcastPort != "" {
-    pc, err := net.ListenPacket(
-      "udp4", net.JoinHostPort(udpIP, strconv.Itoa(udpPort)),
-    )
-    if err != nil {
-      fatalerr("error starting server:", err)
-    }
-    broadcastAddr, err = net.ResolveUDPAddr(
-      "udp4",
-      net.JoinHostPort(broadcastIP, strconv.Itoa(broadcastPort)),
-    )
-    if err != nil {
-      fatalerr("error starting server:", err)
-    }
+	if !noBroadcast {
+		pc, err := net.ListenPacket(
+			"udp4", net.JoinHostPort(udpIP, strconv.Itoa(udpPort)),
+		)
+		if err != nil {
+			fatalerr("error starting server:", err)
+		}
+		broadcastAddr, err = net.ResolveUDPAddr(
+			"udp4",
+			net.JoinHostPort(broadcastIP, strconv.Itoa(broadcastPort)),
+		)
+		if err != nil {
+			fatalerr("error starting server:", err)
+		}
 
-    go handleMsgs()
-    go listen2(pc)
-    go ping2(pc)
-    go check2()
-  } else {
-    log.Println("no udp and broadcast port, running without fileshare network")
-  }
+		go handleMsgs()
+		go listen2(pc)
+		go ping2(pc)
+		go check2()
+	} else {
+		log.Println("no udp and broadcast port, running without fileshare network")
+	}
 
 	log.Fatalln("error running HTTP server:", <-errChan)
 }
@@ -137,9 +139,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		srvrs = append(srvrs, iSrvr.(*Srvr))
 		return true
 	})
-  sort.Slice(srvrs, func(i, j int) bool {
-    return srvrs[i].Name < srvrs[j].Name
-  })
+	sort.Slice(srvrs, func(i, j int) bool {
+		return srvrs[i].Name < srvrs[j].Name
+	})
 	if err := ts.Execute(w, srvrs); err != nil {
 		log.Println("error executing template:", err)
 		//http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -235,7 +237,7 @@ func downloadZip(w http.ResponseWriter, r *http.Request, path string) {
 		if info.IsDir() {
 			return nil
 		}
-    f, err := zw.Create(path[fsDirLen:])
+		f, err := zw.Create(path[fsDirLen:])
 		if err != nil {
 			return err
 		}
@@ -262,7 +264,7 @@ func downloadTar(w http.ResponseWriter, r *http.Request, path string) {
 		if err != nil {
 			return err
 		}
-    hdr.Name = filepath.ToSlash(path[fsDirLen:])
+		hdr.Name = filepath.ToSlash(path[fsDirLen:])
 		if info.IsDir() {
 			return nil
 		}
